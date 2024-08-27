@@ -6,30 +6,47 @@ const PORT = process.env.PORT || 3000;
 
 async function scrape(url, container) {
     const browser = await puppeteer.launch({ 
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage', // Reduces RAM usage
+            '--disable-gpu', // Disables GPU acceleration
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process', // Runs browser in a single process, useful for low-resource environments
+            '--disable-extensions'
+        ],
         headless: true 
     });
 
+    const page = await browser.newPage();
+
+    // Block unnecessary resources like images and CSS
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+        const resourceType = req.resourceType();
+        if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
+            req.abort();
+        } else {
+            req.continue();
+        }
+    });
+
     try {
-        const page = await browser.newPage();
-        console.log(`Navigating to ${url}`);
-        await page.goto(url, { waitUntil: 'networkidle2' });
+        await page.goto(url, { waitUntil: 'domcontentloaded' });
 
         let content;
         if (container) {
-            console.log(`Selecting content in container: ${container}`);
             content = await page.$eval(container, el => el.innerHTML);
         } else {
             content = await page.content();
         }
 
-        console.log(`Successfully scraped content from ${url}`);
         await browser.close();
         return content;
 
     } catch (error) {
         console.error("Error during scraping:", error.message);
-        console.error("Stack trace:", error.stack);
         await browser.close();
         throw error;
     }
