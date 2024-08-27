@@ -1,3 +1,0 @@
-docker build --platform linux/arm64 -t puppeteer-web-scraper .
-
-docker run --rm --platform linux/arm64 -e PORT=5129 -p 5129:5129 puppeteer-web-scraper
