@@ -5,23 +5,24 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 async function scrape(url, container) {
-    const browser = await puppeteer.launch({ 
+    const browser = await puppeteer.launch({
         args: [
-            '--no-sandbox', 
+            '--no-sandbox',
             '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage', // Reduces RAM usage
-            '--disable-gpu', // Disables GPU acceleration
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
             '--no-first-run',
             '--no-zygote',
-            '--single-process', // Runs browser in a single process, useful for low-resource environments
+            '--single-process',
             '--disable-extensions'
         ],
-        headless: true 
+        headless: true,
+        protocolTimeout: 60000 // 60 seconds protocol timeout
     });
 
     const page = await browser.newPage();
+    await page.setDefaultNavigationTimeout(60000); // Sets navigation timeout to 60 seconds
 
-    // Block unnecessary resources like images and CSS
     await page.setRequestInterception(true);
     page.on('request', (req) => {
         const resourceType = req.resourceType();
@@ -33,7 +34,9 @@ async function scrape(url, container) {
     });
 
     try {
-        await page.goto(url, { waitUntil: 'domcontentloaded' });
+        console.log("Navigating to URL:", url);
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 }); // Wait for network to be idle
+        console.log("Page loaded successfully");
 
         let content;
         if (container) {
